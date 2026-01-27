@@ -1,0 +1,81 @@
+#!/bin/bash
+
+# Source the shared utility script
+TOOL_DIR="$(git rev-parse --show-toplevel)/tools"
+source "$TOOL_DIR/scripts/git-commit-handler.sh"
+source "$TOOL_DIR/scripts/git-branch-handler.sh"
+source "$TOOL_DIR/scripts/update-handler.sh"
+
+commands=(
+  "commit"
+  "branch"
+  "update"
+  "help"
+)
+
+descriptions=(
+  "Create compliance commit"
+  "Create compliance branch"
+  "Update current Codevilian's tools to newest version"
+  "View help message"
+)
+
+# Check if the command is valid
+is_valid_command() {
+  local input="$1"
+  for i in "${!commands[@]}"; do
+    if [[ "$input" == "${commands[$i]}" ]]; then
+      cmd_index=$i
+      return 0
+    fi
+  done
+  return 1
+}
+
+help_message() {
+  echo "🛠️  Usage: ./tools/cv <command>"
+  echo ""
+  echo "📦 Available commands:"
+  for i in "${!commands[@]}"; do
+    printf "  %-10s - %s\n" "${commands[$i]}" "${descriptions[$i]}"
+  done
+}
+
+# Main logic
+cmd="$1"
+shift
+args=("$@")
+
+# Check for empty input
+if [[ -z "$cmd" ]]; then
+  echo "❌ No command provided."
+  echo ""
+  help_message
+  exit 1
+fi
+
+# Check for invalid commands
+if ! is_valid_command "$cmd"; then
+  echo "❌ Invalid command: $cmd"
+  help_message
+  exit 1
+fi
+
+echo "✅ ${descriptions[$cmd_index]}"
+echo ""
+
+# Handle command base on case
+case "$cmd" in
+commit)
+  git_commit_handler
+  ;;
+branch)
+  git_branch_handler
+  ;;
+update)
+  update_handler
+  ;;
+help)
+  help_message
+  ;;
+esac

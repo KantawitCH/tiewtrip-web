@@ -1,0 +1,25 @@
+#!/bin/bash
+
+# Source the shared utility script
+TOOL_DIR="$(git rev-parse --show-toplevel)/tools"
+source "$TOOL_DIR/scripts/utils.sh"
+
+# Define constants and variables
+STATUS=0
+
+log.Whisper "Setting up the repository..."
+
+# give execute permission to codevilian command
+chmod +x $TOOL_DIR/cv
+
+# Setting up Git hooks
+bash $TOOL_DIR/scripts/setup-git-hooks.sh
+STATUS=$((STATUS + $?))
+
+# Check the overall status
+if [ $STATUS -eq 0 ]; then
+  log.Whisper "Repository setup complete."
+else
+  log.Whisper "Repository setup failed. Please check the logs above for details."
+  exit 1
+fi

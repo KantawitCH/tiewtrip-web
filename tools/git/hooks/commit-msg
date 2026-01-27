@@ -1,0 +1,42 @@
+#!/bin/bash
+
+# Source the shared utility script
+TOOL_DIR="$(git rev-parse --show-toplevel)/tools"
+
+source "$TOOL_DIR/scripts/utils.sh"
+
+# Define constants and variables
+COMMIT_MSG_FILE=$1
+COMMIT_MSG="$(cat "$COMMIT_MSG_FILE")"
+COMMIT_MSG_PATTERN="^($(join_by "|" "${COMMIT_MSG_TYPES[@]}"))(\([a-z-]+\))?: [a-z][^.!?]{1,71}$"
+
+if ! [[ $COMMIT_MSG =~ $COMMIT_MSG_PATTERN ]]; then
+  log.Guard "❌ Whoops! Your commit message doesn't follow our convention. Let's fix it! 🚧"
+  log.Guard ""
+  log.Guard "📌 Expected Format: <type>[(<scope>)]: <subject>"
+  log.Guard "   Where:"
+  log.Guard "   • <type>: A category of the change being made"
+  log.Guard "     - Use a single word in kebab-case style"
+  log.Guard "     - Use one of the predefined types: $(join_by ", " "${COMMIT_MSG_TYPES[@]}")"
+  log.Guard ""
+  log.Guard "   • <scope> (Optional): A scope provides additional context about the change"
+  log.Guard "     - Use a single word or short phrase in kebab-case style"
+  log.Guard "     - Use nouns representing parts or components in the project (e.g., setup, auth, user)"
+  log.Guard ""
+  log.Guard "   • <subject>: A brief but descriptive summary of the change"
+  log.Guard "     - Start with a lowercase verb in imperative mood (e.g., add, update, fix)"
+  log.Guard "     - Use present tense (e.g., 'add feature' instead of 'added feature')"
+  log.Guard "     - No period or punctuation at the end"
+  log.Guard "     - Must not exceed 72 characters"
+  log.Guard ""
+  log.Guard "💡 Example: feat(auth): add Google login support"
+  log.Guard ""
+  log.Guard "ℹ️ OR run our helper command!"
+  log.Guard "   > ./tools/cv commit"
+  log.Guard ""
+  log.Guard "🚀 Let's try again!"
+  exit 1
+fi
+
+log.Guard "🌟 What a perfect commit message! You're a Git pro! 🎉"
+exit 0
