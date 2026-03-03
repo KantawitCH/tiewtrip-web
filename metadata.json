@@ -1,5 +1,5 @@
 {
-  "name": "SwissTrip",
-  "description": "A minimalist, Swiss-design inspired trip planning application powered by Gemini AI.",
+  "name": "TiewTrip",
+  "description": "A group trip operating system for planning itineraries and managing expenses.",
   "requestFramePermissions": []
 }

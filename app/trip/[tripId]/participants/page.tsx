@@ -1,0 +1,102 @@
+"use client";
+
+import { useState } from 'react';
+import { useParams } from 'next/navigation';
+import { useTripStore } from '@/lib/store';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { UserPlus, Trash2, Copy, Check } from 'lucide-react';
+import { toast } from 'sonner';
+
+export default function ParticipantsPage() {
+  const params = useParams();
+  const tripId = params.tripId as string;
+  const trip = useTripStore((state) => state.trips.find((t) => t.id === tripId));
+  const participants = useTripStore((state) => state.participants).filter((p) => p.tripId === tripId);
+  const addParticipant = useTripStore((state) => state.addParticipant);
+  const removeParticipant = useTripStore((state) => state.removeParticipant);
+
+  const [isInviteOpen, setIsInviteOpen] = useState(false);
+  const [newParticipantName, setNewParticipantName] = useState('');
+  const [inviteLinkCopied, setInviteLinkCopied] = useState(false);
+
+  if (!trip) return null;
+
+  const handleAddParticipant = () => {
+    if (!newParticipantName) return;
+    addParticipant({
+      tripId,
+      name: newParticipantName,
+      role: 'Member'
+    });
+    setNewParticipantName('');
+    setIsInviteOpen(false);
+    toast.success(`${newParticipantName} added to trip`);
+  };
+
+  const handleRemove = (id: string, name: string) => {
+    if (confirm(`Remove ${name} from the trip?`)) {
+      removeParticipant(id);
+      toast.success("Participant removed");
+    }
+  };
+
+  const copyInviteLink = () => {
+    const link = `${window.location.origin}/trip/${tripId}/join`; // Mock link
+    navigator.clipboard.writeText(link);
+    setInviteLinkCopied(true);
+    toast.success("Invite link copied!");
+    setTimeout(() => setInviteLinkCopied(false), 2000);
+  };
+
+  return (
+    <div className="max-w-6xl space-y-8 pb-12">
+      {/* Participants Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {participants.map((participant) => (
+          <Card key={participant.id} className="group border-soft hover:border-sky-500/50 hover:shadow-lg hover:shadow-sky-500/5 transition-all duration-300 overflow-hidden">
+            <div className="p-6 flex items-start justify-between gap-4">
+               <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-2xl bg-soft flex items-center justify-center font-display font-black text-2xl text-ink group-hover:bg-sky-100 group-hover:text-sky-700 transition-colors duration-300">
+                     {participant.name.charAt(0)}
+                  </div>
+                  <div>
+                     <h3 className="font-bold text-xl text-ink mb-1">{participant.name}</h3>
+                     <div className="flex flex-col gap-1">
+                        <Badge variant="default" className={`w-fit text-[10px] uppercase tracking-wider font-bold ${participant.role === 'Owner' ? 'bg-ink text-cream' : 'bg-soft text-muted'}`}>
+                           {participant.role}
+                        </Badge>
+                        <p className="text-xs text-muted truncate max-w-[140px]">{participant.email || 'No email added'}</p>
+                     </div>
+                  </div>
+               </div>
+               
+               {participant.role !== 'Owner' && (
+                  <Button 
+                     variant="ghost" 
+                     size="icon"
+                     className="text-muted hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all"
+                     onClick={() => handleRemove(participant.id, participant.name)}
+                  >
+                     <Trash2 className="w-4 h-4" />
+                  </Button>
+               )}
+            </div>
+          </Card>
+        ))}
+        
+        {/* Empty State / Add Card */}
+        <button onClick={() => setIsInviteOpen(true)} className="group border-2 border-dashed border-soft rounded-xl p-6 flex flex-col items-center justify-center gap-4 hover:border-sky-500 hover:bg-sky-50 transition-all duration-300 min-h-[140px]">
+           <div className="w-12 h-12 rounded-full bg-sky-100 flex items-center justify-center group-hover:bg-sky-500 group-hover:text-white transition-colors shadow-sm">
+              <UserPlus className="w-5 h-5 text-sky-600 group-hover:text-white" />
+           </div>
+           <span className="font-bold text-sky-700 group-hover:text-sky-800">Add another traveler</span>
+        </button>
+      </div>
+    </div>
+  );
+}

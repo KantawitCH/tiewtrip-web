@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+@theme {
+  --color-cream: #FAF7F0;
+  --color-ink: #1A1714;
+  --color-coral: #FF5C3A;
+  --color-mint: #3DFFC0;
+  --color-yellow: #FFE44D;
+  --color-plum: #2D0A3E;
+  --color-soft: #F0EBE1;
+  --color-muted: #A09890;
+
+  --font-display: var(--font-figtree);
+  --font-body: var(--font-dm-sans);
+  --font-mono: var(--font-mono);
+
+  --animate-floaty: floaty 3s ease-in-out infinite;
+  --animate-pulse-slow: pulse-slow 1.8s ease-in-out infinite;
+  --animate-drift: drift 8s alternate infinite;
+  --animate-scroll: scroll 22s linear infinite;
+  --animate-rotate-star: rotateStar 80s linear infinite;
+
+  @keyframes floaty {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-7px); }
+  }
+  @keyframes pulse-slow {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(0.85); opacity: 0.4; }
+  }
+  @keyframes drift {
+    0% { transform: translate(0, 0) scale(1); }
+    100% { transform: translate(20px, -20px) scale(1.08); }
+  }
+  @keyframes scroll {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+  @keyframes rotateStar {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+}
+
+.font-fraunces {
+  font-family: var(--font-fraunces);
+}
+
+:root {
+  --background: var(--color-cream);
+  --foreground: var(--color-ink);
+}
+
+body {
+  background-color: var(--color-cream);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+}
