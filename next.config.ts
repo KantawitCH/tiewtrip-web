@@ -1,7 +1,11 @@
 import type {NextConfig} from 'next';
+import path from 'path';
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  // Pin the output file tracing root to the project directory to avoid
+  // the workspace-root mis-detection warning caused by a lockfile at ~/package-lock.json.
+  outputFileTracingRoot: path.join(__dirname),
   eslint: {
     ignoreDuringBuilds: true,
   },

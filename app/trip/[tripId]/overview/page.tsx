@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { format, differenceInDays, isFuture, isPast } from 'date-fns';
-import { ArrowRight, Wallet, Users, Map, Calendar, Settings, Share2, Plus, Clock, MapPin, Car } from 'lucide-react';
+import { ArrowRight, Wallet, Users, Map, Calendar, Settings, Share2, Clock, MapPin, Car } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
@@ -29,6 +29,10 @@ export default function TripOverviewPage() {
   
   const daysUntil = differenceInDays(startDate, today);
   const duration = differenceInDays(endDate, startDate) + 1;
+  const currentDay = differenceInDays(today, startDate) + 1;
+  const daysAgo = differenceInDays(today, endDate);
+  const isActive = daysUntil <= 0 && !isPast(endDate);
+  const isPastTrip = isPast(endDate);
   const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
   
   // Find next activity
@@ -51,17 +55,19 @@ export default function TripOverviewPage() {
            <CardContent className="p-6 flex flex-col h-full justify-between">
               <div>
                  <div className="flex items-center gap-2 mb-4">
-                    <div className={`w-2 h-2 rounded-full ${daysUntil > 0 ? 'bg-mint animate-pulse' : 'bg-ink/20'}`} />
+                    <div className={`w-2 h-2 rounded-full ${daysUntil > 0 ? 'bg-mint animate-pulse' : isActive ? 'bg-coral animate-pulse' : 'bg-ink/20'}`} />
                     <span className="font-mono text-xs font-bold uppercase tracking-widest text-muted">
-                       {daysUntil > 0 ? 'Countdown' : 'Status'}
+                       {daysUntil > 0 ? 'Countdown' : isActive ? 'Day' : 'Ended'}
                     </span>
                  </div>
                  <div className="space-y-1">
                     <span className="text-4xl md:text-5xl font-display font-black tracking-tight text-ink block">
-                       {daysUntil > 0 ? daysUntil : (isPast(endDate) ? 'Ended' : 'Live')}
+                       {daysUntil > 0 ? daysUntil : isActive ? (
+                         <>{currentDay}<span className="text-2xl font-bold text-muted"> of {duration}</span></>
+                       ) : `${daysAgo} days ago`}
                     </span>
                     <span className="text-sm font-medium text-muted block">
-                       {daysUntil > 0 ? 'Days until departure' : isPast(endDate) ? 'Trip completed' : 'Enjoy your trip!'}
+                       {daysUntil > 0 ? 'Days to go' : isActive ? 'In Progress' : 'Trip completed'}
                     </span>
                  </div>
               </div>
@@ -160,26 +166,11 @@ export default function TripOverviewPage() {
          {/* Left Column: Itinerary Focus */}
          <div className="lg:col-span-2 space-y-8">
             
-            {/* Quick Actions Row */}
-            <div className="flex gap-4 overflow-x-auto pb-2">
-               <Link href={`/trip/${tripId}/itinerary`}>
-                  <Button className="rounded-full bg-ink text-cream hover:bg-ink/90 shadow-lg shadow-ink/20">
-                     <Plus className="w-4 h-4 mr-2" /> Add Activity
-                  </Button>
-               </Link>
-               <Link href={`/trip/${tripId}/money`}>
-                  <Button variant="outline" className="rounded-full border-soft bg-white hover:bg-soft text-ink">
-                     <Plus className="w-4 h-4 mr-2" /> Add Expense
-                  </Button>
-               </Link>
-            </div>
-
             {/* Itinerary Snapshot */}
             <section>
                <div className="flex justify-between items-end mb-6">
                   <div>
-                     <h3 className="text-2xl font-display font-bold text-ink">Up Next</h3>
-                     <p className="text-muted text-sm mt-1">Your upcoming schedule</p>
+                     <h3 className="text-sm font-mono font-bold uppercase tracking-widest text-muted">Up Next</h3>
                   </div>
                   <Link href={`/trip/${tripId}/itinerary`}>
                      <Button variant="link" className="text-coral h-auto p-0 font-bold">View Full Itinerary <ArrowRight className="w-4 h-4 ml-1" /></Button>

@@ -7,8 +7,10 @@ import { useTripStore } from '@/lib/store';
 import AppLayout from '@/components/layout/app-layout';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { MapPin, Calendar, Settings, Users, Wallet, Map, LayoutTemplate, Car, ArrowLeft, MoreHorizontal, Share2 } from 'lucide-react';
+import { MapPin, Calendar, Settings, Users, Wallet, Map, LayoutTemplate, Car, ArrowLeft, MoreHorizontal, Share2, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { toast } from 'sonner';
 
 export default function TripLayout({ children }: { children: React.ReactNode }) {
   const params = useParams();
@@ -20,7 +22,11 @@ export default function TripLayout({ children }: { children: React.ReactNode }) 
   const fetchTrips = useTripStore((state) => state.fetchTrips);
   const trips = useTripStore((state) => state.trips);
   const isLoading = useTripStore((state) => state.isLoading);
+  const participants = useTripStore((state) => state.participants).filter((p) => p.tripId === tripId);
+  const currentUserId = useTripStore((state) => state.currentUserId);
   const [mounted, setMounted] = useState(false);
+  const [isShareOpen, setIsShareOpen] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -57,6 +63,9 @@ export default function TripLayout({ children }: { children: React.ReactNode }) 
       </AppLayout>
     );
   }
+
+  const currentUserRole = participants.find(p => p.id === currentUserId)?.role;
+  const canInvite = currentUserRole === 'Owner' || currentUserRole === 'Admin';
 
   const tabs = [
     { 
@@ -111,11 +120,23 @@ export default function TripLayout({ children }: { children: React.ReactNode }) 
         <div className="max-w-7xl mx-auto">
            <div className="flex flex-col gap-6 border-b-2 border-dashed border-ink/10 pb-8">
               <div className="space-y-2">
-                 {/* Top Bar: Back Link */}
-                 <div className="flex items-center gap-2 text-coral font-bold uppercase tracking-widest text-xs">
-                    <Link href="/dashboard" className="hover:text-coral/80 transition-colors flex items-center gap-1">
-                       <ArrowLeft className="w-3 h-3" /> Back to Dashboard
-                    </Link>
+                 {/* Top Bar: Back Link + Share */}
+                 <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-coral font-bold uppercase tracking-widest text-xs">
+                       <Link href="/dashboard" className="hover:text-coral/80 transition-colors flex items-center gap-1">
+                          <ArrowLeft className="w-3 h-3" /> Back to Dashboard
+                       </Link>
+                    </div>
+                    {canInvite && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsShareOpen(true)}
+                        className="flex items-center gap-2"
+                      >
+                        <Share2 className="w-4 h-4" /> Share
+                      </Button>
+                    )}
                  </div>
 
                  {/* Trip Title & Details */}
@@ -163,6 +184,34 @@ export default function TripLayout({ children }: { children: React.ReactNode }) 
            {children}
         </main>
       </div>
+      <Dialog open={isShareOpen} onOpenChange={setIsShareOpen}>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle>Invite to trip</DialogTitle>
+            <DialogDescription>Share this link to invite others to join.</DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-2 mt-2">
+            <input
+              readOnly
+              value={`${typeof window !== 'undefined' ? window.location.origin : ''}/trip/${tripId}/join`}
+              className="flex-1 text-sm border border-soft rounded-lg px-3 py-2 bg-paper text-muted truncate"
+            />
+            <Button
+              variant="outline"
+              onClick={() => {
+                navigator.clipboard.writeText(`${window.location.origin}/trip/${tripId}/join`);
+                setLinkCopied(true);
+                toast.success("Invite link copied!");
+                setTimeout(() => setLinkCopied(false), 2000);
+              }}
+              className="flex items-center gap-2 shrink-0"
+            >
+              {linkCopied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+              {linkCopied ? 'Copied!' : 'Copy Link'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }

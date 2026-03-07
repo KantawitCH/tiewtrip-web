@@ -5,11 +5,9 @@ import { useParams } from 'next/navigation';
 import { useTripStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { UserPlus, Trash2, Copy, Check } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 
 export default function ParticipantsPage() {
@@ -19,12 +17,16 @@ export default function ParticipantsPage() {
   const participants = useTripStore((state) => state.participants).filter((p) => p.tripId === tripId);
   const addParticipant = useTripStore((state) => state.addParticipant);
   const removeParticipant = useTripStore((state) => state.removeParticipant);
+  const currentUserId = useTripStore((state) => state.currentUserId);
 
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [newParticipantName, setNewParticipantName] = useState('');
   const [inviteLinkCopied, setInviteLinkCopied] = useState(false);
 
   if (!trip) return null;
+
+  const currentUserRole = participants.find(p => p.id === currentUserId)?.role;
+  const canInvite = currentUserRole === 'Owner' || currentUserRole === 'Admin';
 
   const handleAddParticipant = () => {
     if (!newParticipantName) return;
@@ -90,13 +92,39 @@ export default function ParticipantsPage() {
         ))}
         
         {/* Empty State / Add Card */}
-        <button onClick={() => setIsInviteOpen(true)} className="group border-2 border-dashed border-soft rounded-xl p-6 flex flex-col items-center justify-center gap-4 hover:border-sky-500 hover:bg-sky-50 transition-all duration-300 min-h-[140px]">
-           <div className="w-12 h-12 rounded-full bg-sky-100 flex items-center justify-center group-hover:bg-sky-500 group-hover:text-white transition-colors shadow-sm">
-              <UserPlus className="w-5 h-5 text-sky-600 group-hover:text-white" />
-           </div>
-           <span className="font-bold text-sky-700 group-hover:text-sky-800">Add another traveler</span>
-        </button>
+        {canInvite && (
+          <button onClick={() => setIsInviteOpen(true)} className="group border-2 border-dashed border-soft rounded-xl p-6 flex flex-col items-center justify-center gap-4 hover:border-sky-500 hover:bg-sky-50 transition-all duration-300 min-h-[140px]">
+             <div className="w-12 h-12 rounded-full bg-sky-100 flex items-center justify-center group-hover:bg-sky-500 group-hover:text-white transition-colors shadow-sm">
+                <UserPlus className="w-5 h-5 text-sky-600 group-hover:text-white" />
+             </div>
+             <span className="font-bold text-sky-700 group-hover:text-sky-800">Add another traveler</span>
+          </button>
+        )}
       </div>
+
+      <Dialog open={isInviteOpen} onOpenChange={setIsInviteOpen}>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle>Invite to trip</DialogTitle>
+            <DialogDescription>Share this link to invite others to join.</DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-2 mt-2">
+            <input
+              readOnly
+              value={`${typeof window !== 'undefined' ? window.location.origin : ''}/trip/${tripId}/join`}
+              className="flex-1 text-sm border border-soft rounded-lg px-3 py-2 bg-paper text-muted truncate"
+            />
+            <Button
+              variant="outline"
+              onClick={copyInviteLink}
+              className="flex items-center gap-2 shrink-0"
+            >
+              {inviteLinkCopied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+              {inviteLinkCopied ? 'Copied!' : 'Copy Link'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

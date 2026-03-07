@@ -46,7 +46,6 @@ export const MOCK_ACTIVITIES: Activity[] = [
     location: 'Hotel Zetta',
     notes: 'Reservation #12345',
     order: 0,
-    estimatedCost: 0
   },
   {
     id: 'act-2',
@@ -58,7 +57,6 @@ export const MOCK_ACTIVITIES: Activity[] = [
     location: 'House of Prime Rib',
     notes: 'Booking for 3 people',
     order: 1,
-    estimatedCost: 150
   },
   {
     id: 'act-3',
@@ -69,7 +67,6 @@ export const MOCK_ACTIVITIES: Activity[] = [
     endTime: '10:30',
     location: 'Moscone Center',
     order: 0,
-    estimatedCost: 0
   },
   {
     id: 'act-4',
@@ -79,7 +76,6 @@ export const MOCK_ACTIVITIES: Activity[] = [
     startTime: '10:00',
     location: 'SFO -> NRT',
     order: 0,
-    estimatedCost: 1200
   }
 ];
 

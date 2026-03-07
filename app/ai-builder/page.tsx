@@ -56,8 +56,7 @@ function AIBuilderContent() {
               "startTime": "HH:MM",
               "endTime": "HH:MM",
               "location": "Address or Place Name",
-              "notes": "Short description",
-              "estimatedCost": number (in USD, approximate)
+              "notes": "Short description"
             }
           ]
         }
@@ -113,7 +112,6 @@ function AIBuilderContent() {
         endTime: activity.endTime,
         location: activity.location,
         notes: activity.notes,
-        estimatedCost: activity.estimatedCost,
         order: index,
       });
     }));
@@ -213,7 +211,6 @@ function AIBuilderContent() {
                       <p className="text-sm text-ink/70 mb-2">{activity.notes}</p>
                       <div className="flex gap-2">
                         {activity.location && <Badge variant="outline" className="text-xs">{activity.location}</Badge>}
-                        {activity.estimatedCost > 0 && <Badge variant="yellow" className="text-xs text-ink">~${activity.estimatedCost}</Badge>}
                       </div>
                     </div>
                   </div>

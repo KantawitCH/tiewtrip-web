@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { format, addDays, parseISO } from 'date-fns';
-import { Plus, MapPin, Clock, Trash2, GripVertical, Pencil, MoreHorizontal } from 'lucide-react';
+import { Plus, MapPin, Clock, Trash2, GripVertical, Pencil, MoreHorizontal, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -23,6 +23,7 @@ export default function ItineraryPage() {
   const addActivity = useTripStore((state) => state.addActivity);
   const updateActivity = useTripStore((state) => state.updateActivity);
   const deleteActivity = useTripStore((state) => state.deleteActivity);
+  const updateTrip = useTripStore((state) => state.updateTrip);
 
   const [selectedDay, setSelectedDay] = useState(0);
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -53,7 +54,7 @@ export default function ItineraryPage() {
       startTime: formData.get('startTime') as string,
       endTime: formData.get('endTime') as string,
       notes: formData.get('notes') as string,
-      estimatedCost: Number(formData.get('estimatedCost')) || 0,
+      mapUrl: formData.get('mapUrl') as string,
     };
 
     if (!data.title) {
@@ -95,6 +96,13 @@ export default function ItineraryPage() {
     setIsAddOpen(true);
   };
 
+  const handleAddDay = async () => {
+    const newEndDate = addDays(new Date(trip.endDate), 1).toISOString();
+    await updateTrip(tripId, { endDate: newEndDate });
+    setSelectedDay(days.length); // current length = new day's 0-based index
+    toast.success("Day added");
+  };
+
   return (
     <div className="flex flex-col lg:flex-row gap-8">
       {/* Day Selector Sidebar */}
@@ -131,6 +139,13 @@ export default function ItineraryPage() {
               </button>
             );
           })}
+          <button
+            onClick={handleAddDay}
+            className="flex items-center justify-center gap-2 p-3 rounded-xl border-2 border-dashed border-soft text-muted hover:border-coral hover:text-coral transition-all min-w-[120px] lg:w-full font-medium text-sm"
+          >
+            <Plus className="w-4 h-4" />
+            Add day
+          </button>
         </div>
       </div>
 
@@ -214,17 +229,21 @@ export default function ItineraryPage() {
                                 </div>
                               )}
 
+                              {activity.mapUrl && (
+                                <a href={activity.mapUrl} target="_blank" rel="noopener noreferrer"
+                                   className="flex items-center gap-1.5 text-sm text-coral hover:underline mb-2"
+                                   onClick={(e) => e.stopPropagation()}>
+                                  <ExternalLink className="w-3.5 h-3.5" />
+                                  View on Map
+                                </a>
+                              )}
+
                               {activity.notes && (
                                 <p className="text-sm text-ink/70 bg-soft/30 p-2 rounded-lg mb-2">
                                   {activity.notes}
                                 </p>
                               )}
 
-                              {(activity.estimatedCost ?? 0) > 0 && (
-                                 <Badge variant="yellow" className="text-xs font-mono">
-                                    Est. ${activity.estimatedCost}
-                                 </Badge>
-                              )}
                           </div>
                         </Card>
                     </div>
@@ -266,8 +285,8 @@ export default function ItineraryPage() {
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="estimatedCost">Estimated Cost</Label>
-                <Input id="estimatedCost" name="estimatedCost" type="number" min="0" defaultValue={editingActivity?.estimatedCost} placeholder="0.00" />
+                <Label htmlFor="mapUrl">Google Maps Link</Label>
+                <Input id="mapUrl" name="mapUrl" type="url" defaultValue={editingActivity?.mapUrl} placeholder="https://maps.google.com/..." />
               </div>
 
               <div className="grid gap-2">

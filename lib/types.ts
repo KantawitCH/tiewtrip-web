@@ -18,11 +18,11 @@ export interface Activity {
   endTime?: string;
   location?: string;
   notes?: string;
-  estimatedCost?: number;
+  mapUrl?: string;
   order: number;
 }
 
-export type SplitMethod = 'equal' | 'custom';
+export type SplitMethod = 'equal' | 'exact' | 'percentage' | 'shares';
 
 export interface Expense {
   id: string;
@@ -35,6 +35,17 @@ export interface Expense {
   splitMethod: SplitMethod;
   customSplits?: Record<string, number>;
   activityId?: string;
+  date: string;
+  isPaid?: boolean;
+}
+
+export interface Settlement {
+  id: string;
+  tripId: string;
+  fromParticipantId: string;
+  toParticipantId: string;
+  amount: number;
+  currency: string;
   date: string;
 }
 

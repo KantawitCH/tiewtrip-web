@@ -1,10 +1,10 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import { Trip, Participant, Activity, Expense, Role, Vehicle } from './types';
+import { Trip, Participant, Activity, Expense, Role, Vehicle, Settlement } from './types';
 import { api } from './api';
 
 // Export types for use in components
-export type { Trip, Participant, Activity, Expense, Role, Vehicle };
+export type { Trip, Participant, Activity, Expense, Role, Vehicle, Settlement };
 
 interface TripState {
   trips: Trip[];
@@ -12,6 +12,7 @@ interface TripState {
   activities: Activity[];
   expenses: Expense[];
   vehicles: Vehicle[];
+  settlements: Settlement[];
   currentUserId: string;
   isLoading: boolean;
   error: string | null;
@@ -24,16 +25,20 @@ interface TripState {
   updateTrip: (id: string, data: Partial<Trip>) => Promise<void>;
   deleteTrip: (id: string) => Promise<void>;
   joinTrip: (tripId: string, role?: Role) => Promise<void>;
-  
+
   addParticipant: (participant: Omit<Participant, 'id'>) => Promise<void>;
   removeParticipant: (id: string) => Promise<void>;
-  
+
   addActivity: (activity: Omit<Activity, 'id'>) => Promise<void>;
   updateActivity: (id: string, data: Partial<Activity>) => Promise<void>;
   deleteActivity: (id: string) => Promise<void>;
-  
+
   addExpense: (expense: Omit<Expense, 'id'>) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
+  markExpensePaid: (id: string, isPaid: boolean) => Promise<void>;
+
+  addSettlement: (s: Omit<Settlement, 'id'>) => Promise<void>;
+  deleteSettlement: (id: string) => Promise<void>;
 
   addVehicle: (vehicle: Omit<Vehicle, 'id'>) => Promise<void>;
   updateVehicle: (id: string, data: Partial<Vehicle>) => Promise<void>;
@@ -48,6 +53,7 @@ export const useTripStore = create<TripState>((set, get) => ({
   activities: [],
   expenses: [],
   vehicles: [],
+  settlements: [],
   currentUserId: 'user-1',
   isLoading: false,
   error: null,
@@ -65,15 +71,13 @@ export const useTripStore = create<TripState>((set, get) => ({
   fetchTripData: async (tripId: string) => {
     set({ isLoading: true, error: null });
     try {
-      const [participants, activities, expenses] = await Promise.all([
+      const [participants, activities, expenses, settlements] = await Promise.all([
         api.getParticipants(tripId),
         api.getActivities(tripId),
-        api.getExpenses(tripId)
+        api.getExpenses(tripId),
+        api.getSettlements(tripId),
       ]);
-      
-      // Merge with existing state to avoid wiping other trips' data if we were caching
-      // For simplicity, we'll just append/replace. 
-      // A better approach for a real app is normalized state (byId), but for now:
+
       set(state => ({
         participants: [
           ...state.participants.filter(p => p.tripId !== tripId),
@@ -86,6 +90,10 @@ export const useTripStore = create<TripState>((set, get) => ({
         expenses: [
           ...state.expenses.filter(e => e.tripId !== tripId),
           ...expenses
+        ],
+        settlements: [
+          ...state.settlements.filter(s => s.tripId !== tripId),
+          ...settlements
         ],
         isLoading: false
       }));
@@ -256,6 +264,40 @@ export const useTripStore = create<TripState>((set, get) => ({
       }));
     } catch (error) {
       set({ error: 'Failed to delete expense' });
+    }
+  },
+
+  markExpensePaid: async (id, isPaid) => {
+    try {
+      await api.updateExpense(id, { isPaid });
+      set(state => ({
+        expenses: state.expenses.map(e => e.id === id ? { ...e, isPaid } : e)
+      }));
+    } catch (error) {
+      set({ error: 'Failed to update expense' });
+    }
+  },
+
+  addSettlement: async (data) => {
+    const newSettlement = { ...data, id: uuidv4() };
+    try {
+      await api.addSettlement(newSettlement);
+      set(state => ({
+        settlements: [...state.settlements, newSettlement]
+      }));
+    } catch (error) {
+      set({ error: 'Failed to add settlement' });
+    }
+  },
+
+  deleteSettlement: async (id) => {
+    try {
+      await api.deleteSettlement(id);
+      set(state => ({
+        settlements: state.settlements.filter(s => s.id !== id)
+      }));
+    } catch (error) {
+      set({ error: 'Failed to delete settlement' });
     }
   },
 

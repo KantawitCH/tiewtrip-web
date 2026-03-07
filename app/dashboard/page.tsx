@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Plus, MapPin, Calendar, Sparkles, ArrowRight, Clock, Users, Plane, Ticket } from 'lucide-react';
-import { format, isFuture, isPast } from 'date-fns';
+import { format, isFuture, isPast, differenceInDays } from 'date-fns';
 import AppLayout from '@/components/layout/app-layout';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
@@ -197,6 +197,15 @@ function DashboardContent() {
 function TicketCard({ trip, router, variant }: { trip: any, router: any, variant: 'upcoming' | 'past' }) {
   const isUpcoming = variant === 'upcoming';
   const destCode = trip.destination.substring(0, 3).toUpperCase();
+  const startDate = new Date(trip.startDate);
+  const endDate = new Date(trip.endDate);
+  const today = new Date();
+  const daysUntil = differenceInDays(startDate, today);
+  const duration = differenceInDays(endDate, startDate) + 1;
+  const currentDay = differenceInDays(today, startDate) + 1;
+  const daysAgo = differenceInDays(today, endDate);
+  const isActive = daysUntil <= 0 && !isPast(endDate);
+  const isPastTrip = isPast(endDate);
   
   return (
     <div className="animate-in fade-in zoom-in-95 duration-500 group h-full">
@@ -222,15 +231,34 @@ function TicketCard({ trip, router, variant }: { trip: any, router: any, variant
           </div>
           
           <div className="flex justify-between items-end mt-auto">
-             <div>
-                <p className="text-xs font-bold text-muted uppercase tracking-widest mb-1">Date</p>
-                <p className="font-mono font-medium text-ink">
-                  {format(new Date(trip.startDate), 'MMM dd')}
-                </p>
+             <div className="flex items-end gap-3">
+                <div>
+                  <p className="text-xs font-bold text-muted uppercase tracking-widest mb-1">Depart</p>
+                  <p className="font-mono font-medium text-ink">
+                    {format(new Date(trip.startDate), 'MMM dd')}
+                  </p>
+                </div>
+                <ArrowRight className="w-3 h-3 text-muted mb-[5px]" />
+                <div>
+                  <p className="text-xs font-bold text-muted uppercase tracking-widest mb-1">Return</p>
+                  <p className="font-mono font-medium text-ink">
+                    {format(new Date(trip.endDate), 'MMM dd')}
+                  </p>
+                </div>
              </div>
-             {isUpcoming && (
+             {isFuture(startDate) && (
                <Badge variant="mint" className="bg-mint text-ink hover:bg-mint/90 border-none">
-                 Active
+                 {daysUntil} days to go
+               </Badge>
+             )}
+             {isActive && (
+               <Badge variant="coral" className="bg-coral text-white hover:bg-coral/90 border-none">
+                 Day {currentDay} of {duration}
+               </Badge>
+             )}
+             {isPastTrip && (
+               <Badge variant="outline" className="border-ink/20 text-muted">
+                 {daysAgo} days ago
                </Badge>
              )}
           </div>

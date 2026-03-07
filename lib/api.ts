@@ -1,4 +1,4 @@
-import { Trip, Participant, Activity, Expense } from './types';
+import { Trip, Participant, Activity, Expense, Settlement } from './types';
 import { MOCK_TRIPS, MOCK_PARTICIPANTS, MOCK_ACTIVITIES, MOCK_EXPENSES } from './mock-data';
 
 // Simulating a database delay
@@ -21,6 +21,7 @@ let db = {
   participants: [...MOCK_PARTICIPANTS],
   activities: [...MOCK_ACTIVITIES],
   expenses: [...MOCK_EXPENSES],
+  settlements: [] as Settlement[],
 };
 
 // API Client
@@ -109,6 +110,30 @@ export const api = {
 
   deleteExpense: async (id: string): Promise<void> => {
     db.expenses = db.expenses.filter((e) => e.id !== id);
+    return delay(undefined);
+  },
+
+  updateExpense: async (id: string, data: Partial<Expense>): Promise<Expense> => {
+    const index = db.expenses.findIndex((e) => e.id === id);
+    if (index !== -1) {
+      db.expenses[index] = { ...db.expenses[index], ...data };
+      return delay({ ...db.expenses[index] });
+    }
+    throw new Error('Expense not found');
+  },
+
+  // --- Settlements ---
+  getSettlements: async (tripId: string): Promise<Settlement[]> => {
+    return delay(db.settlements.filter((s) => s.tripId === tripId));
+  },
+
+  addSettlement: async (settlement: Settlement): Promise<Settlement> => {
+    db.settlements.push(settlement);
+    return delay(settlement);
+  },
+
+  deleteSettlement: async (id: string): Promise<void> => {
+    db.settlements = db.settlements.filter((s) => s.id !== id);
     return delay(undefined);
   },
 };
