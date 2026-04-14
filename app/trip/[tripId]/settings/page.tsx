@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useTripStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Trash2, LogOut, Settings } from 'lucide-react';
+import { Trash2, ImagePlus } from 'lucide-react';
 
 export default function SettingsPage() {
   const params = useParams();
@@ -17,6 +17,10 @@ export default function SettingsPage() {
   const trip = useTripStore((state) => state.trips.find((t) => t.id === tripId));
   const updateTrip = useTripStore((state) => state.updateTrip);
   const deleteTrip = useTripStore((state) => state.deleteTrip);
+  const uploadTripImage = useTripStore((state) => state.uploadTripImage);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
 
   const [formData, setFormData] = useState({
     name: trip?.name || '',
@@ -32,6 +36,21 @@ export default function SettingsPage() {
     toast.success("Trip updated successfully");
   };
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      await uploadTripImage(tripId, file);
+      toast.success("Cover photo updated");
+    } catch {
+      toast.error("Failed to upload image");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   const handleDelete = () => {
     if (confirm("Are you sure you want to delete this trip? This action cannot be undone.")) {
       deleteTrip(tripId);
@@ -45,6 +64,38 @@ export default function SettingsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Main Settings Column */}
         <div className="lg:col-span-2 space-y-8">
+          <Card className="border-soft shadow-sm overflow-hidden">
+            <CardHeader className="bg-soft/30 border-b border-soft pb-6">
+              <CardTitle className="font-display text-xl font-bold text-ink">Cover Photo</CardTitle>
+              <CardDescription>Upload a cover image for your trip.</CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6 pb-6">
+              {trip.coverImageUrl && (
+                <img
+                  src={trip.coverImageUrl}
+                  alt="Trip cover"
+                  className="w-full h-40 object-cover rounded-xl mb-4 border border-soft"
+                />
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleImageUpload}
+              />
+              <Button
+                variant="outline"
+                disabled={uploading}
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-2"
+              >
+                <ImagePlus className="w-4 h-4" />
+                {uploading ? 'Uploading...' : trip.coverImageUrl ? 'Change Photo' : 'Upload Photo'}
+              </Button>
+            </CardContent>
+          </Card>
+
           <Card className="border-soft shadow-sm overflow-hidden">
             <CardHeader className="bg-soft/30 border-b border-soft pb-6">
               <CardTitle className="font-display text-xl font-bold text-ink">General Information</CardTitle>

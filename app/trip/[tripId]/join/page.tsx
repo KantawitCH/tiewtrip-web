@@ -1,43 +1,52 @@
 "use client";
 
-import { useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useEffect, Suspense } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useTripStore } from '@/lib/store';
+import { useAuthStore } from '@/lib/authStore';
+import { acceptInvitation } from '@/lib/tripApi';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { MapPin, Calendar, Users } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
-export default function JoinTripPage() {
+function JoinTripContent() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const tripId = params.tripId as string;
+  const token = searchParams.get('token');
   const trip = useTripStore((state) => state.trips.find((t) => t.id === tripId));
-  const joinTrip = useTripStore((state) => state.joinTrip);
   const participants = useTripStore((state) => state.participants).filter((p) => p.tripId === tripId);
+  const user = useAuthStore((state) => state.user);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
-  const isAuthenticated = typeof window !== 'undefined'
-    ? !!sessionStorage.getItem('authToken')
-    : false;
-
-  const isMember = participants.some(p => p.name === 'Me');
+  const isMember = participants.some(p => p.id === user?.id);
 
   useEffect(() => {
     if (!isAuthenticated) {
-      sessionStorage.setItem('pendingJoinUrl', `/trip/${tripId}/join`);
-      router.push(`/auth/sign-in?redirect=/trip/${tripId}/join`);
+      const redirect = `/trip/${tripId}/join${token ? `?token=${token}` : ''}`;
+      sessionStorage.setItem('pendingJoinUrl', redirect);
+      router.push(`/auth/sign-in?redirect=${encodeURIComponent(redirect)}`);
       return;
     }
     if (isMember) {
       router.push(`/trip/${tripId}/overview`);
     }
-  }, [isAuthenticated, isMember, router, tripId]);
+  }, [isAuthenticated, isMember, router, tripId, token]);
 
-  const handleJoin = () => {
-    joinTrip(tripId);
-    toast.success("Joined trip successfully!");
-    router.push(`/trip/${tripId}/overview`);
+  const handleJoin = async () => {
+    if (!user) return;
+    try {
+      if (token) {
+        await acceptInvitation(token, user.id);
+      }
+      toast.success("Joined trip successfully!");
+      router.push(`/trip/${tripId}/overview`);
+    } catch {
+      toast.error("Failed to join trip. The invite link may be invalid or expired.");
+    }
   };
 
   if (!trip) {
@@ -89,5 +98,13 @@ export default function JoinTripPage() {
         </CardFooter>
       </Card>
     </div>
+  );
+}
+
+export default function JoinTripPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-cream p-4" />}>
+      <JoinTripContent />
+    </Suspense>
   );
 }

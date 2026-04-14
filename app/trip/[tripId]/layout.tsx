@@ -7,10 +7,11 @@ import { useTripStore } from '@/lib/store';
 import AppLayout from '@/components/layout/app-layout';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { MapPin, Calendar, Settings, Users, Wallet, Map, LayoutTemplate, Car, ArrowLeft, MoreHorizontal, Share2, Copy, Check } from 'lucide-react';
+import { MapPin, Calendar, Settings, Users, Wallet, Map, LayoutTemplate, Car, ArrowLeft, Share2, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { toast } from 'sonner';
+import { generateInvitation } from '@/lib/tripApi';
 
 export default function TripLayout({ children }: { children: React.ReactNode }) {
   const params = useParams();
@@ -20,23 +21,23 @@ export default function TripLayout({ children }: { children: React.ReactNode }) 
   const trip = useTripStore((state) => state.trips.find((t) => t.id === tripId));
   const fetchTripData = useTripStore((state) => state.fetchTripData);
   const fetchTrips = useTripStore((state) => state.fetchTrips);
-  const trips = useTripStore((state) => state.trips);
   const isLoading = useTripStore((state) => state.isLoading);
   const participants = useTripStore((state) => state.participants).filter((p) => p.tripId === tripId);
   const currentUserId = useTripStore((state) => state.currentUserId);
   const [mounted, setMounted] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [inviteUrl, setInviteUrl] = useState<string | null>(null);
+  const [inviteLoading, setInviteLoading] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-    if (tripId) {
-      fetchTripData(tripId);
-    }
-    if (trips.length === 0) {
+    if (!tripId) return;
+    fetchTripData(tripId);
+    if (!useTripStore.getState().trips.some(t => t.id === tripId)) {
       fetchTrips();
     }
-  }, [tripId, fetchTripData, fetchTrips, trips.length]);
+  }, [tripId, fetchTripData, fetchTrips]);
 
   if (!mounted) {
     return <div className="min-h-screen bg-paper/50" />;
@@ -75,40 +76,40 @@ export default function TripLayout({ children }: { children: React.ReactNode }) 
       activeClass: 'bg-ink text-white shadow-md shadow-ink/20',
       inactiveClass: 'text-muted hover:bg-ink/5'
     },
-    { 
-      href: `/trip/${tripId}/itinerary`, 
-      label: 'Itinerary', 
-      icon: Map, 
-      activeClass: 'bg-coral text-white shadow-md shadow-coral/20',
-      inactiveClass: 'text-muted hover:bg-coral/5'
+    {
+      href: `/trip/${tripId}/schedule`,
+      label: 'Schedule',
+      icon: Map,
+      activeClass: 'bg-ink text-white shadow-md shadow-ink/20',
+      inactiveClass: 'text-muted hover:bg-ink/5'
     },
-    { 
-      href: `/trip/${tripId}/money`, 
-      label: 'Money', 
-      icon: Wallet, 
-      activeClass: 'bg-mint text-ink shadow-md shadow-mint/20',
-      inactiveClass: 'text-muted hover:bg-mint/10'
+    {
+      href: `/trip/${tripId}/expense`,
+      label: 'Expense',
+      icon: Wallet,
+      activeClass: 'bg-ink text-white shadow-md shadow-ink/20',
+      inactiveClass: 'text-muted hover:bg-ink/5'
     },
-    { 
-      href: `/trip/${tripId}/participants`, 
-      label: 'People', 
-      icon: Users, 
-      activeClass: 'bg-sky-500 text-white shadow-md shadow-sky-500/20',
-      inactiveClass: 'text-muted hover:bg-sky-500/5'
+    {
+      href: `/trip/${tripId}/participant`,
+      label: 'Participant',
+      icon: Users,
+      activeClass: 'bg-ink text-white shadow-md shadow-ink/20',
+      inactiveClass: 'text-muted hover:bg-ink/5'
     },
-    { 
-      href: `/trip/${tripId}/vehicles`, 
-      label: 'Vehicles', 
-      icon: Car, 
-      activeClass: 'bg-yellow-500 text-ink shadow-md shadow-yellow-500/20',
-      inactiveClass: 'text-muted hover:bg-yellow-500/10'
+    {
+      href: `/trip/${tripId}/transport`,
+      label: 'Transport',
+      icon: Car,
+      activeClass: 'bg-ink text-white shadow-md shadow-ink/20',
+      inactiveClass: 'text-muted hover:bg-ink/5'
     },
-    { 
-      href: `/trip/${tripId}/settings`, 
-      label: 'Settings', 
-      icon: Settings, 
-      activeClass: 'bg-slate-800 text-white shadow-md shadow-slate-800/20',
-      inactiveClass: 'text-muted hover:bg-slate-800/5'
+    {
+      href: `/trip/${tripId}/settings`,
+      label: 'Settings',
+      icon: Settings,
+      activeClass: 'bg-ink text-white shadow-md shadow-ink/20',
+      inactiveClass: 'text-muted hover:bg-ink/5'
     },
   ];
 
@@ -131,7 +132,20 @@ export default function TripLayout({ children }: { children: React.ReactNode }) 
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setIsShareOpen(true)}
+                        onClick={async () => {
+                        setIsShareOpen(true);
+                        if (!inviteUrl) {
+                          setInviteLoading(true);
+                          try {
+                            const { token } = await generateInvitation(tripId);
+                            setInviteUrl(`${window.location.origin}/trip/${tripId}/join?token=${token}`);
+                          } catch {
+                            toast.error('Failed to generate invite link');
+                          } finally {
+                            setInviteLoading(false);
+                          }
+                        }
+                      }}
                         className="flex items-center gap-2"
                       >
                         <Share2 className="w-4 h-4" /> Share
@@ -193,13 +207,16 @@ export default function TripLayout({ children }: { children: React.ReactNode }) 
           <div className="flex gap-2 mt-2">
             <input
               readOnly
-              value={`${typeof window !== 'undefined' ? window.location.origin : ''}/trip/${tripId}/join`}
+              value={inviteLoading ? 'Generating link...' : (inviteUrl ?? '')}
+              placeholder={inviteLoading ? '' : 'Loading...'}
               className="flex-1 text-sm border border-soft rounded-lg px-3 py-2 bg-paper text-muted truncate"
             />
             <Button
               variant="outline"
+              disabled={inviteLoading || !inviteUrl}
               onClick={() => {
-                navigator.clipboard.writeText(`${window.location.origin}/trip/${tripId}/join`);
+                if (!inviteUrl) return;
+                navigator.clipboard.writeText(inviteUrl);
                 setLinkCopied(true);
                 toast.success("Invite link copied!");
                 setTimeout(() => setLinkCopied(false), 2000);

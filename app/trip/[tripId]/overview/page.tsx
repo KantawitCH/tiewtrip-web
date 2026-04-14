@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { format, differenceInDays, isFuture, isPast } from 'date-fns';
-import { ArrowRight, Wallet, Users, Map, Calendar, Settings, Share2, Clock, MapPin, Car } from 'lucide-react';
+import { ArrowRight, Wallet, Users, Map, Calendar, Settings, Share2, Clock, MapPin } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
@@ -84,7 +84,7 @@ export default function TripOverviewPage() {
         </Card>
 
         {/* BUDGET CARD */}
-        <Card className="border-soft shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group cursor-pointer" onClick={() => router.push(`/trip/${tripId}/money`)}>
+        <Card className="border-soft shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group cursor-pointer" onClick={() => router.push(`/trip/${tripId}/expense`)}>
            <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity">
               <Wallet className="w-32 h-32 -mr-8 -mt-8 text-mint" />
            </div>
@@ -119,7 +119,7 @@ export default function TripOverviewPage() {
         </Card>
 
         {/* TEAM CARD */}
-        <Card className="border-soft shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group cursor-pointer" onClick={() => router.push(`/trip/${tripId}/participants`)}>
+        <Card className="border-soft shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group cursor-pointer" onClick={() => router.push(`/trip/${tripId}/participant`)}>
            <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity">
               <Users className="w-32 h-32 -mr-8 -mt-8 text-sky-500" />
            </div>
@@ -168,12 +168,12 @@ export default function TripOverviewPage() {
             
             {/* Itinerary Snapshot */}
             <section>
-               <div className="flex justify-between items-end mb-6">
+               <div className="flex justify-between items-center mb-6">
                   <div>
                      <h3 className="text-sm font-mono font-bold uppercase tracking-widest text-muted">Up Next</h3>
                   </div>
-                  <Link href={`/trip/${tripId}/itinerary`}>
-                     <Button variant="link" className="text-coral h-auto p-0 font-bold">View Full Itinerary <ArrowRight className="w-4 h-4 ml-1" /></Button>
+                  <Link href={`/trip/${tripId}/schedule`}>
+                     <Button variant="link" className="text-coral h-auto p-0 font-bold">View Full Schedule <ArrowRight className="w-4 h-4 ml-1" /></Button>
                   </Link>
                </div>
                
@@ -185,7 +185,7 @@ export default function TripOverviewPage() {
                            className="animate-in fade-in slide-in-from-left-4 duration-500"
                            style={{ animationDelay: `${i * 100}ms` }}
                         >
-                           <Card className="border-soft hover:border-coral/30 transition-all hover:shadow-md group cursor-pointer" onClick={() => router.push(`/trip/${tripId}/itinerary`)}>
+                           <Card className="border-soft hover:border-coral/30 transition-all hover:shadow-md group cursor-pointer" onClick={() => router.push(`/trip/${tripId}/schedule`)}>
                               <div className="p-5 flex items-center gap-5">
                                  <div className="flex flex-col items-center justify-center w-16 h-16 bg-soft rounded-2xl text-center group-hover:bg-coral group-hover:text-white transition-colors">
                                     <span className="text-[10px] font-bold uppercase opacity-60">Day</span>
@@ -222,7 +222,7 @@ export default function TripOverviewPage() {
                         </div>
                         <h4 className="font-bold text-ink text-lg mb-2">No activities planned</h4>
                         <p className="text-muted text-sm mb-6 max-w-xs mx-auto">Your itinerary is looking a bit empty. Start adding activities to build your perfect trip.</p>
-                        <Link href={`/trip/${tripId}/itinerary`}>
+                        <Link href={`/trip/${tripId}/schedule`}>
                            <Button className="bg-ink text-cream hover:bg-ink/90">Start Planning</Button>
                         </Link>
                      </CardContent>
@@ -234,42 +234,11 @@ export default function TripOverviewPage() {
          {/* Right Column: Context & Tools */}
          <div className="space-y-8">
             
-            {/* Trip Tools Grid */}
-            <section>
-               <h3 className="text-sm font-mono font-bold uppercase tracking-widest text-muted mb-4">Trip Tools</h3>
-               <div className="grid grid-cols-2 gap-3">
-                  <Link href={`/trip/${tripId}/money`}>
-                     <div className="bg-white border border-soft p-4 rounded-2xl hover:border-mint hover:shadow-sm hover:shadow-mint/10 transition-all cursor-pointer h-full group">
-                        <Wallet className="w-6 h-6 text-muted group-hover:text-mint mb-3 transition-colors" />
-                        <span className="font-bold text-ink text-sm block">Budgets</span>
-                     </div>
-                  </Link>
-                  <Link href={`/trip/${tripId}/participants`}>
-                     <div className="bg-white border border-soft p-4 rounded-2xl hover:border-sky-500 hover:shadow-sm hover:shadow-sky-500/10 transition-all cursor-pointer h-full group">
-                        <Users className="w-6 h-6 text-muted group-hover:text-sky-500 mb-3 transition-colors" />
-                        <span className="font-bold text-ink text-sm block">Team</span>
-                     </div>
-                  </Link>
-                  <Link href={`/trip/${tripId}/vehicles`}>
-                     <div className="bg-white border border-soft p-4 rounded-2xl hover:border-yellow-500 hover:shadow-sm hover:shadow-yellow-500/10 transition-all cursor-pointer h-full group">
-                        <Car className="w-6 h-6 text-muted group-hover:text-yellow-500 mb-3 transition-colors" />
-                        <span className="font-bold text-ink text-sm block">Vehicles</span>
-                     </div>
-                  </Link>
-                  <Link href={`/trip/${tripId}/itinerary`}>
-                     <div className="bg-white border border-soft p-4 rounded-2xl hover:border-orange-500 hover:shadow-sm hover:shadow-orange-500/10 transition-all cursor-pointer h-full group">
-                        <Map className="w-6 h-6 text-muted group-hover:text-orange-500 mb-3 transition-colors" />
-                        <span className="font-bold text-ink text-sm block">Plan</span>
-                     </div>
-                  </Link>
-               </div>
-            </section>
-
             {/* Recent Expenses (Mini List) */}
             <section>
-               <div className="flex justify-between items-center mb-4">
+               <div className="flex justify-between items-center mb-6">
                   <h3 className="text-sm font-mono font-bold uppercase tracking-widest text-muted">Recent Spending</h3>
-                  <Link href={`/trip/${tripId}/money`} className="text-xs font-bold text-coral hover:underline">View All</Link>
+                  <Link href={`/trip/${tripId}/expense`} className="text-xs font-bold text-coral hover:underline">View All</Link>
                </div>
                <Card className="border-soft bg-white overflow-hidden">
                   <div className="divide-y divide-soft">
@@ -296,7 +265,7 @@ export default function TripOverviewPage() {
                   </div>
                   {expenses.length > 0 && (
                      <div className="p-3 bg-soft/30 border-t border-soft text-center">
-                        <Link href={`/trip/${tripId}/money`}>
+                        <Link href={`/trip/${tripId}/expense`}>
                            <Button variant="ghost" size="sm" className="text-xs text-muted h-auto py-1">Add Expense</Button>
                         </Link>
                      </div>

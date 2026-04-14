@@ -16,8 +16,6 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
-type Tab = 'transactions' | 'balance';
-
 const SPLIT_METHODS: { value: SplitMethod; label: string; icon: React.ElementType }[] = [
   { value: 'equal', label: 'Equal', icon: Equal },
   { value: 'exact', label: 'Exact', icon: DollarSign },
@@ -93,7 +91,6 @@ export default function MoneyPage() {
   const markExpensePaid = useTripStore((state) => state.markExpensePaid);
   const addSettlement = useTripStore((state) => state.addSettlement);
 
-  const [tab, setTab] = useState<Tab>('transactions');
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [newExpense, setNewExpense] = useState<{ title: string; amount: string; currency: string; paidByParticipantId: string }>({
     title: '',
@@ -215,10 +212,31 @@ export default function MoneyPage() {
   const viewer = participants.find(p => p.id === selectedParticipantId);
   const otherParticipants = participants.filter(p => p.id !== selectedParticipantId);
 
+  // Hero stats
+  const totalSpent = expenses.reduce((sum, e) => sum + e.amount, 0);
+  const myShare = viewer
+    ? expenses.reduce((sum, e) => sum + getParticipantShare(e, viewer.id), 0)
+    : null;
+  const myNetBalance = viewer
+    ? otherParticipants.reduce((sum, other) =>
+        sum + getPairwiseBalance(expenses, settlements, viewer.id, other.id), 0)
+    : null;
+
+  const balanceLabel = myNetBalance === null ? '—'
+    : Math.abs(myNetBalance) < 0.01 ? 'Settled'
+    : myNetBalance > 0 ? `+$${myNetBalance.toFixed(2)}`
+    : `-$${Math.abs(myNetBalance).toFixed(2)}`;
+
+  const balanceAccent = myNetBalance === null || Math.abs(myNetBalance) < 0.01
+    ? 'bg-soft' : myNetBalance > 0 ? 'bg-mint' : 'bg-coral';
+
+  const balanceTextColor = myNetBalance === null || Math.abs(myNetBalance) < 0.01
+    ? 'text-muted' : myNetBalance > 0 ? 'text-ink' : 'text-coral';
+
   // For dialog summary display
-  const totalAmount = Number(newExpense.amount) || 0;
-  const equalShare = selectedIds.length > 0 ? totalAmount / selectedIds.length : 0;
-  const exactRemaining = totalAmount - selectedIds.reduce((a, id) => a + (splits[id] ?? 0), 0);
+  const dialogAmount = Number(newExpense.amount) || 0;
+  const equalShare = selectedIds.length > 0 ? dialogAmount / selectedIds.length : 0;
+  const exactRemaining = dialogAmount - selectedIds.reduce((a, id) => a + (splits[id] ?? 0), 0);
   const pctRemaining = 100 - selectedIds.reduce((a, id) => a + (splits[id] ?? 0), 0);
   const totalShares = Object.values(splits).reduce((a, b) => a + b, 0);
 
@@ -229,135 +247,25 @@ export default function MoneyPage() {
     shares: 'shares',
   };
 
+  const expenseCount = expenses.length;
+  const expensePlural = expenseCount !== 1 ? 's' : '';
+
   return (
-    <div className="space-y-6">
-      {/* Tab Bar */}
-      <div className="flex items-center justify-between">
-        <div className="flex gap-0 border border-soft rounded-lg overflow-hidden font-mono text-xs">
-          {(['transactions', 'balance'] as Tab[]).map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={cn(
-                "px-5 py-2 uppercase tracking-wider font-bold transition-colors",
-                tab === t
-                  ? "bg-ink text-white"
-                  : "bg-white text-muted hover:bg-soft/40"
-              )}
-            >
-              {t === 'transactions' ? 'Transactions' : 'My Balance'}
-            </button>
-          ))}
-        </div>
-        <Button size="sm" onClick={openAddDialog} className="font-bold">
-          <Plus className="w-4 h-4 mr-1" /> Add Expense
-        </Button>
-      </div>
+    <div className="max-w-6xl flex flex-col lg:flex-row gap-8 pb-12">
 
-      {/* ── Tab 1: Transactions ── */}
-      {tab === 'transactions' && (
-        <Card className="border-soft shadow-sm">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-soft">
-            <h2 className="text-base font-bold">Transactions</h2>
-            <Badge variant="outline" className="font-mono text-xs">{expenses.length} items</Badge>
+      {/* ── SIDEBAR ── */}
+      <div className="w-full lg:w-64 flex-shrink-0">
+        <div className="flex lg:flex-col gap-3 flex-wrap lg:flex-nowrap">
+          {/* Section title */}
+          <div className="w-full flex items-center justify-between mb-1">
+            <span className="font-display font-bold text-ink text-lg">My Balance</span>
           </div>
-          {expenses.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-64 text-center opacity-60">
-              <Receipt className="w-12 h-12 text-muted mb-3" />
-              <p className="text-sm text-muted">No transactions yet.</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                <thead className="text-xs text-muted uppercase bg-soft/30 font-medium">
-                  <tr>
-                    <th className="px-6 py-3">Date</th>
-                    <th className="px-6 py-3">Description</th>
-                    <th className="px-6 py-3">Payer</th>
-                    <th className="px-6 py-3 text-right">Amount</th>
-                    <th className="px-6 py-3 text-right">Status</th>
-                    <th className="px-6 py-3 w-10"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-soft">
-                  {expenses.map((expense) => (
-                    <tr
-                      key={expense.id}
-                      className={cn(
-                        "group transition-colors",
-                        expense.isPaid ? "opacity-50 bg-soft/10" : "hover:bg-soft/10"
-                      )}
-                    >
-                      <td className="px-6 py-4 font-mono text-muted text-xs whitespace-nowrap">
-                        {format(new Date(expense.date), 'MMM d')}
-                      </td>
-                      <td className="px-6 py-4 font-medium text-ink">
-                        <div className="flex items-center gap-2">
-                          {expense.title}
-                          <span className="font-mono text-[10px] text-muted bg-soft/60 rounded px-1 py-0.5 uppercase tracking-wider">
-                            {splitMethodBadgeLabel[expense.splitMethod]}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <div className="w-5 h-5 rounded-full bg-soft flex items-center justify-center text-[10px] font-bold">
-                            {getParticipantName(expense.paidByParticipantId).charAt(0)}
-                          </div>
-                          <span className="text-xs text-muted truncate max-w-[80px]">
-                            {getParticipantName(expense.paidByParticipantId)}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-right font-mono font-bold text-ink">
-                        ${expense.amount.toFixed(2)}
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        {expense.isPaid ? (
-                          <button
-                            onClick={() => markExpensePaid(expense.id, false)}
-                            className="inline-flex items-center gap-1 text-xs font-bold text-green-600 bg-green-50 border border-green-200 rounded px-2 py-0.5 hover:bg-green-100 transition-colors font-mono"
-                          >
-                            <CheckCircle2 className="w-3 h-3" /> SETTLED
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => markExpensePaid(expense.id, true)}
-                            className="text-xs text-muted hover:text-ink border border-soft rounded px-2 py-0.5 transition-colors"
-                          >
-                            Mark paid
-                          </button>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-muted hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={() => {
-                            if (confirm('Delete expense?')) deleteExpense(expense.id);
-                          }}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </Card>
-      )}
 
-      {/* ── Tab 2: My Balance ── */}
-      {tab === 'balance' && (
-        <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <ArrowRightLeft className="w-4 h-4 text-muted" />
-            <span className="text-sm font-medium text-muted">View balances as:</span>
+          {/* Viewing as selector */}
+          <div className="w-full flex items-center gap-2">
+            <ArrowRightLeft className="w-4 h-4 text-muted flex-shrink-0" />
             <Select value={selectedParticipantId} onValueChange={setSelectedParticipantId}>
-              <SelectTrigger className="w-48">
+              <SelectTrigger className="flex-1 h-9 text-sm rounded-xl border-soft bg-white">
                 <SelectValue placeholder="Pick a participant" />
               </SelectTrigger>
               <SelectContent>
@@ -368,13 +276,14 @@ export default function MoneyPage() {
             </Select>
           </div>
 
+          {/* Balance cards or empty state */}
           {!viewer ? (
-            <div className="flex flex-col items-center justify-center h-48 text-center opacity-60">
-              <ArrowRightLeft className="w-10 h-10 text-muted mb-2" />
-              <p className="text-sm text-muted">Select a participant to view their balances.</p>
+            <div className="w-full flex flex-col items-center justify-center h-32 text-center border-2 border-dashed border-soft rounded-2xl">
+              <ArrowRightLeft className="w-8 h-8 text-muted mb-1.5" />
+              <p className="text-xs text-muted">Select a participant to view their balances.</p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="w-full space-y-3">
               {otherParticipants.map(other => {
                 const net = getPairwiseBalance(expenses, settlements, viewer.id, other.id);
                 const isSettled = Math.abs(net) < 0.01;
@@ -391,21 +300,24 @@ export default function MoneyPage() {
                       isSettled
                         ? "border-soft"
                         : viewerIsOwed
-                          ? "border-green-200 bg-green-50/30"
-                          : "border-red-200 bg-red-50/30"
+                          ? "border-mint/60 bg-mint/20"
+                          : "border-coral/50 bg-coral/[0.06]"
                     )}
                   >
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-full bg-soft flex items-center justify-center text-sm font-bold text-ink">
+                          <div className={cn(
+                            "w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-ink",
+                            isSettled ? "bg-soft" : viewerIsOwed ? "bg-mint/40" : "bg-coral/20"
+                          )}>
                             {other.name.charAt(0)}
                           </div>
                           <div>
                             <p className="font-semibold text-sm text-ink">{other.name}</p>
                             <p className={cn(
                               "text-xs font-mono font-bold",
-                              isSettled ? "text-muted" : viewerIsOwed ? "text-green-700" : "text-red-600"
+                              isSettled ? "text-muted" : viewerIsOwed ? "text-ink font-bold" : "text-coral"
                             )}>
                               {isSettled
                                 ? "Settled"
@@ -420,7 +332,7 @@ export default function MoneyPage() {
                             <Button
                               size="sm"
                               variant="outline"
-                              className="text-xs h-8"
+                              className="text-xs h-8 bg-ink text-white hover:bg-ink/80 transition-colors rounded-full px-4 font-bold shadow-sm"
                               onClick={() => handleSettleUp(other.id, net)}
                             >
                               Settle Up
@@ -460,20 +372,234 @@ export default function MoneyPage() {
             </div>
           )}
         </div>
-      )}
+      </div>
+
+      {/* ── MAIN PANEL ── */}
+      <div className="flex-1 bg-white/50 rounded-[32px] border border-soft p-6 md:p-8">
+
+        {/* Hero stats */}
+        <div className="grid grid-cols-3 gap-4 mb-8">
+          {/* Total Spent */}
+          <div className="relative overflow-hidden rounded-2xl bg-white border border-soft p-4">
+            <div className="absolute inset-x-0 bottom-0 h-[3px] bg-coral" />
+            <p className="text-[10px] font-mono uppercase tracking-widest text-muted mb-1">Total Spent</p>
+            <p className="text-2xl md:text-3xl font-black font-mono leading-none text-ink">${totalSpent.toFixed(2)}</p>
+            <p className="text-[10px] text-muted mt-1.5">{expenseCount} expense{expensePlural}</p>
+          </div>
+          {/* My Share */}
+          <div className="relative overflow-hidden rounded-2xl bg-white border border-soft p-4">
+            <div className="absolute inset-x-0 bottom-0 h-[3px] bg-soft" />
+            <p className="text-[10px] font-mono uppercase tracking-widest text-muted mb-1">My Share</p>
+            <p className="text-2xl md:text-3xl font-black font-mono leading-none text-ink">
+              {myShare !== null ? `$${myShare.toFixed(2)}` : '—'}
+            </p>
+            <p className="text-[10px] text-muted mt-1.5">
+              {viewer ? `of ${expenseCount} expense${expensePlural}` : 'select a participant'}
+            </p>
+          </div>
+          {/* My Balance */}
+          <div className="relative overflow-hidden rounded-2xl bg-white border border-soft p-4">
+            <div className={cn("absolute inset-x-0 bottom-0 h-[3px]", balanceAccent)} />
+            <p className="text-[10px] font-mono uppercase tracking-widest text-muted mb-1">My Balance</p>
+            <p className={cn("text-2xl md:text-3xl font-black font-mono leading-none", balanceTextColor)}>
+              {balanceLabel}
+            </p>
+            <p className="text-[10px] text-muted mt-1.5">net across all debts</p>
+          </div>
+        </div>
+
+        {/* Panel header */}
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h2 className="text-3xl font-display font-bold text-ink">Transactions</h2>
+            <p className="text-muted text-sm mt-0.5">
+              {expenseCount} transaction{expensePlural} · ${totalSpent.toFixed(2)} total
+            </p>
+          </div>
+          <Button onClick={openAddDialog} className="rounded-full font-bold bg-mint text-ink shadow-lg shadow-mint/20 hover:bg-mint/90 px-6">
+            <Plus className="w-4 h-4 mr-2" /> Add Expense
+          </Button>
+        </div>
+
+        {/* Transactions */}
+        {expenses.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-64 text-center border-2 border-dashed border-soft rounded-2xl">
+            <div className="w-16 h-16 rounded-full bg-mint/20 flex items-center justify-center mb-3">
+              <Receipt className="w-8 h-8 text-ink" />
+            </div>
+            <p className="text-sm text-muted">No transactions yet.</p>
+          </div>
+        ) : (
+          <>
+            {/* Mobile cards */}
+            <div className="md:hidden space-y-3">
+              {expenses.map((expense) => (
+                <div
+                  key={expense.id}
+                  className={cn(
+                    "flex flex-col gap-2 rounded-2xl border p-4 transition-colors",
+                    expense.isPaid
+                      ? "opacity-60 bg-soft/20 border-soft"
+                      : "bg-white border-soft hover:border-coral/30"
+                  )}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-9 rounded-full bg-mint/20 flex items-center justify-center flex-shrink-0">
+                        <Receipt className="w-4 h-4 text-ink" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className={cn("font-semibold text-sm text-ink truncate", expense.isPaid && "line-through text-muted")}>
+                          {expense.title}
+                        </p>
+                        <p className="text-xs text-muted">
+                          {getParticipantName(expense.paidByParticipantId)} · {format(new Date(expense.date), 'MMM d')}
+                          {' · '}
+                          <span className="font-mono uppercase tracking-wider">{splitMethodBadgeLabel[expense.splitMethod]}</span>
+                        </p>
+                      </div>
+                    </div>
+                    <span className={cn(
+                      "font-mono font-bold text-sm flex-shrink-0",
+                      expense.isPaid ? "text-muted line-through" : "text-coral"
+                    )}>
+                      ${expense.amount.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 pl-12">
+                    {expense.isPaid ? (
+                      <button
+                        onClick={() => markExpensePaid(expense.id, false)}
+                        className="inline-flex items-center gap-1 text-xs font-bold text-ink bg-mint/30 border border-mint/60 rounded px-2 py-0.5 hover:bg-mint/45 transition-colors font-mono"
+                      >
+                        <CheckCircle2 className="w-3 h-3" /> SETTLED
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => markExpensePaid(expense.id, true)}
+                        className="text-xs font-bold bg-coral/10 text-coral border border-coral/30 rounded-full px-3 py-1 hover:bg-coral hover:text-white transition-colors"
+                      >
+                        Mark paid
+                      </button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted hover:text-coral"
+                      onClick={() => {
+                        if (confirm('Delete expense?')) deleteExpense(expense.id);
+                      }}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="text-xs text-muted uppercase bg-ink/5 font-bold tracking-wider border-b border-soft">
+                  <tr>
+                    <th className="px-6 py-3">Date</th>
+                    <th className="px-6 py-3">Description</th>
+                    <th className="px-6 py-3">Payer</th>
+                    <th className="px-6 py-3 text-right">Amount</th>
+                    <th className="px-6 py-3 text-right">Status</th>
+                    <th className="px-6 py-3 w-10"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-soft">
+                  {expenses.map((expense) => (
+                    <tr
+                      key={expense.id}
+                      className={cn(
+                        "group transition-colors border-l-2",
+                        expense.isPaid
+                          ? "border-l-mint opacity-50 bg-soft/20"
+                          : "border-l-coral hover:bg-soft/30"
+                      )}
+                    >
+                      <td className="px-6 py-4 font-mono text-muted text-xs whitespace-nowrap">
+                        {format(new Date(expense.date), 'MMM d')}
+                      </td>
+                      <td className="px-6 py-4 font-medium text-ink">
+                        <div className="flex items-center gap-2">
+                          {expense.title}
+                          <span className="font-mono text-[10px] text-muted bg-soft/60 rounded px-1 py-0.5 uppercase tracking-wider">
+                            {splitMethodBadgeLabel[expense.splitMethod]}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <div className="w-5 h-5 rounded-full bg-mint/20 text-ink flex items-center justify-center text-[10px] font-bold">
+                            {getParticipantName(expense.paidByParticipantId).charAt(0)}
+                          </div>
+                          <span className="text-xs text-muted truncate max-w-[80px]">
+                            {getParticipantName(expense.paidByParticipantId)}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <span className={cn(
+                          "font-mono font-bold text-sm",
+                          expense.isPaid ? "text-muted line-through" : "text-coral"
+                        )}>
+                          ${expense.amount.toFixed(2)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        {expense.isPaid ? (
+                          <button
+                            onClick={() => markExpensePaid(expense.id, false)}
+                            className="inline-flex items-center gap-1 text-xs font-bold text-ink bg-mint/30 border border-mint/60 rounded px-2 py-0.5 hover:bg-mint/45 transition-colors font-mono"
+                          >
+                            <CheckCircle2 className="w-3 h-3" /> SETTLED
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => markExpensePaid(expense.id, true)}
+                            className="text-xs font-bold bg-coral/10 text-coral border border-coral/30 rounded-full px-3 py-1 hover:bg-coral hover:text-white transition-colors"
+                          >
+                            Mark paid
+                          </button>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted hover:text-coral opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => {
+                            if (confirm('Delete expense?')) deleteExpense(expense.id);
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </div>
 
       {/* Add Expense Dialog */}
       <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="max-w-xl flex flex-col max-h-[90vh] p-0 overflow-hidden">
+          <DialogHeader className="px-6 pt-6 pb-2 flex-shrink-0">
             <div className="flex items-center gap-3 mb-1">
-              <div className="w-10 h-10 rounded-full bg-coral/10 flex items-center justify-center">
-                <Receipt className="w-5 h-5 text-coral" />
+              <div className="w-10 h-10 rounded-full bg-mint/25 flex items-center justify-center">
+                <Receipt className="w-5 h-5 text-ink" />
               </div>
               <DialogTitle className="font-display text-xl">Add Expense</DialogTitle>
             </div>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
+          <div className="grid gap-4 px-6 py-4 overflow-y-auto flex-1 min-h-0">
             <div className="grid gap-2">
               <Label>Title</Label>
               <Input
@@ -623,7 +749,7 @@ export default function MoneyPage() {
                           />
                           {totalShares > 0 && splits[p.id] > 0 && (
                             <span className="text-xs font-mono text-muted whitespace-nowrap">
-                              = ${(totalAmount * splits[p.id] / totalShares).toFixed(2)}
+                              = ${(dialogAmount * splits[p.id] / totalShares).toFixed(2)}
                             </span>
                           )}
                         </div>
@@ -634,9 +760,9 @@ export default function MoneyPage() {
               </div>
 
               {/* Progress bar for exact/percentage */}
-              {splitMethod === 'exact' && totalAmount > 0 && (() => {
-                const allocated = totalAmount - exactRemaining;
-                const pct = Math.min(100, (allocated / totalAmount) * 100);
+              {splitMethod === 'exact' && dialogAmount > 0 && (() => {
+                const allocated = dialogAmount - exactRemaining;
+                const pct = Math.min(100, (allocated / dialogAmount) * 100);
                 const done = Math.abs(exactRemaining) < 0.01;
                 return (
                   <div className="space-y-1">
@@ -672,8 +798,8 @@ export default function MoneyPage() {
               })()}
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="coral" onClick={handleAddExpense} className="w-full">
+          <DialogFooter className="px-6 pb-6 pt-3 flex-shrink-0 border-t border-soft/60">
+            <Button onClick={handleAddExpense} className="w-full bg-ink text-white hover:bg-ink/80 transition-colors rounded-full font-bold shadow-sm">
               Save Expense
             </Button>
           </DialogFooter>

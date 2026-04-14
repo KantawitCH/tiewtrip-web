@@ -60,16 +60,16 @@ export default function ParticipantsPage() {
       {/* Participants Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {participants.map((participant) => (
-          <Card key={participant.id} className="group border-soft hover:border-sky-500/50 hover:shadow-lg hover:shadow-sky-500/5 transition-all duration-300 overflow-hidden">
+          <Card key={participant.id} className="group border-soft hover:border-coral/40 hover:shadow-lg hover:shadow-coral/5 transition-all duration-300 overflow-hidden">
             <div className="p-6 flex items-start justify-between gap-4">
                <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-2xl bg-soft flex items-center justify-center font-display font-black text-2xl text-ink group-hover:bg-sky-100 group-hover:text-sky-700 transition-colors duration-300">
+                  <div className="w-16 h-16 rounded-2xl bg-coral/15 text-coral flex items-center justify-center font-display font-black text-2xl">
                      {participant.name.charAt(0)}
                   </div>
                   <div>
                      <h3 className="font-bold text-xl text-ink mb-1">{participant.name}</h3>
                      <div className="flex flex-col gap-1">
-                        <Badge variant="default" className={`w-fit text-[10px] uppercase tracking-wider font-bold ${participant.role === 'Owner' ? 'bg-ink text-cream' : 'bg-soft text-muted'}`}>
+                        <Badge variant={participant.role === 'Owner' ? 'coral' : 'default'} className="w-fit text-[10px] uppercase tracking-wider font-bold">
                            {participant.role}
                         </Badge>
                         <p className="text-xs text-muted truncate max-w-[140px]">{participant.email || 'No email added'}</p>
@@ -93,11 +93,11 @@ export default function ParticipantsPage() {
         
         {/* Empty State / Add Card */}
         {canInvite && (
-          <button onClick={() => setIsInviteOpen(true)} className="group border-2 border-dashed border-soft rounded-xl p-6 flex flex-col items-center justify-center gap-4 hover:border-sky-500 hover:bg-sky-50 transition-all duration-300 min-h-[140px]">
-             <div className="w-12 h-12 rounded-full bg-sky-100 flex items-center justify-center group-hover:bg-sky-500 group-hover:text-white transition-colors shadow-sm">
-                <UserPlus className="w-5 h-5 text-sky-600 group-hover:text-white" />
+          <button onClick={() => setIsInviteOpen(true)} className="group border-2 border-dashed border-soft rounded-xl p-6 flex flex-col items-center justify-center gap-4 hover:border-coral/50 hover:bg-coral/5 transition-all duration-300 min-h-[140px]">
+             <div className="w-12 h-12 rounded-full bg-coral/10 flex items-center justify-center group-hover:bg-coral transition-colors shadow-sm">
+                <UserPlus className="w-5 h-5 text-coral group-hover:text-white" />
              </div>
-             <span className="font-bold text-sky-700 group-hover:text-sky-800">Add another traveler</span>
+             <span className="font-bold text-coral">Add another traveler</span>
           </button>
         )}
       </div>
@@ -119,7 +119,7 @@ export default function ParticipantsPage() {
               onClick={copyInviteLink}
               className="flex items-center gap-2 shrink-0"
             >
-              {inviteLinkCopied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+              {inviteLinkCopied ? <Check className="w-4 h-4 text-mint" /> : <Copy className="w-4 h-4" />}
               {inviteLinkCopied ? 'Copied!' : 'Copy Link'}
             </Button>
           </div>

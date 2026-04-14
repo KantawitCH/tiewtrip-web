@@ -104,7 +104,7 @@ export default function ItineraryPage() {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row gap-8">
+    <div className="max-w-6xl flex flex-col lg:flex-row gap-8 pb-12">
       {/* Day Selector Sidebar */}
       <div className="w-full lg:w-64 flex-shrink-0 pr-2">
         <div className="flex lg:flex-col gap-3 flex-wrap lg:flex-nowrap">
