@@ -1,7 +1,17 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import { Trip, Participant, Activity, Expense, Role, Vehicle, Settlement } from './types';
-import { api } from './api';
+import {
+  createTrip as createTripApi,
+  updateTripApi,
+  deleteTripApi,
+  uploadTripImage as uploadTripImageApi,
+  fetchParticipants,
+  fetchSchedule,
+  fetchBilling,
+  fetchTransportation,
+} from './tripApi';
+import { fetchDashboardTrips } from './userApi';
 
 // Export types for use in components
 export type { Trip, Participant, Activity, Expense, Role, Vehicle, Settlement };
@@ -24,6 +34,7 @@ interface TripState {
   addTrip: (trip: Omit<Trip, 'id' | 'ownerId' | 'participantIds'>) => Promise<string>;
   updateTrip: (id: string, data: Partial<Trip>) => Promise<void>;
   deleteTrip: (id: string) => Promise<void>;
+  uploadTripImage: (tripId: string, file: File) => Promise<void>;
   joinTrip: (tripId: string, role?: Role) => Promise<void>;
 
   addParticipant: (participant: Omit<Participant, 'id'>) => Promise<void>;
@@ -61,7 +72,7 @@ export const useTripStore = create<TripState>((set, get) => ({
   fetchTrips: async () => {
     set({ isLoading: true, error: null });
     try {
-      const trips = await api.getTrips();
+      const { trips } = await fetchDashboardTrips();
       set({ trips, isLoading: false });
     } catch (error) {
       set({ error: 'Failed to fetch trips', isLoading: false });
@@ -71,31 +82,23 @@ export const useTripStore = create<TripState>((set, get) => ({
   fetchTripData: async (tripId: string) => {
     set({ isLoading: true, error: null });
     try {
-      const [participants, activities, expenses, settlements] = await Promise.all([
-        api.getParticipants(tripId),
-        api.getActivities(tripId),
-        api.getExpenses(tripId),
-        api.getSettlements(tripId),
+      const trip = get().trips.find(t => t.id === tripId);
+      const fromDate = trip?.startDate ?? new Date().toISOString().split('T')[0];
+      const toDate = trip?.endDate ?? fromDate;
+
+      const [participants] = await Promise.all([
+        fetchParticipants(tripId),
+        fetchSchedule(tripId, fromDate, toDate),  // TODO: map to Activity[] when shape confirmed
+        fetchBilling(tripId),                      // TODO: map to Expense[] when shape confirmed
+        fetchTransportation(tripId),               // TODO: map to Vehicle[] when shape confirmed
       ]);
 
       set(state => ({
         participants: [
           ...state.participants.filter(p => p.tripId !== tripId),
-          ...participants
+          ...participants,
         ],
-        activities: [
-          ...state.activities.filter(a => a.tripId !== tripId),
-          ...activities
-        ],
-        expenses: [
-          ...state.expenses.filter(e => e.tripId !== tripId),
-          ...expenses
-        ],
-        settlements: [
-          ...state.settlements.filter(s => s.tripId !== tripId),
-          ...settlements
-        ],
-        isLoading: false
+        isLoading: false,
       }));
     } catch (error) {
       set({ error: 'Failed to fetch trip details', isLoading: false });
@@ -103,34 +106,15 @@ export const useTripStore = create<TripState>((set, get) => ({
   },
 
   addTrip: async (tripData) => {
-    set({ isLoading: true });
-    const id = uuidv4();
-    const currentUserId = get().currentUserId;
-    
-    const newTrip: Trip = {
-      ...tripData,
-      id,
-      ownerId: currentUserId,
-      participantIds: [currentUserId],
-    };
-
-    const ownerParticipant: Participant = {
-      id: uuidv4(),
-      tripId: id,
-      name: 'Me',
-      role: 'Owner',
-    };
-
+    set({ isLoading: true, error: null });
     try {
-      await api.createTrip(newTrip);
-      await api.addParticipant(ownerParticipant);
-      
-      set(state => ({
-        trips: [...state.trips, newTrip],
-        participants: [...state.participants, ownerParticipant],
-        isLoading: false
+      const createdTrip = await createTripApi(tripData);
+      set((state) => ({
+        trips: [createdTrip, ...state.trips.filter((trip) => trip.id !== createdTrip.id)],
+        isLoading: false,
+        error: null,
       }));
-      return id;
+      return createdTrip.id;
     } catch (error) {
       set({ error: 'Failed to create trip', isLoading: false });
       throw error;
@@ -139,7 +123,14 @@ export const useTripStore = create<TripState>((set, get) => ({
 
   updateTrip: async (id, data) => {
     try {
-      await api.updateTrip(id, data);
+      await updateTripApi(id, {
+        name: data.name,
+        destination: data.destination,
+        description: data.description,
+        startDate: data.startDate,
+        endDate: data.endDate,
+        timezone: data.timezone,
+      });
       set(state => ({
         trips: state.trips.map(t => t.id === id ? { ...t, ...data } : t)
       }));
@@ -150,7 +141,7 @@ export const useTripStore = create<TripState>((set, get) => ({
 
   deleteTrip: async (id) => {
     try {
-      await api.deleteTrip(id);
+      await deleteTripApi(id);
       set(state => ({
         trips: state.trips.filter(t => t.id !== id),
         participants: state.participants.filter(p => p.tripId !== id),
@@ -159,6 +150,19 @@ export const useTripStore = create<TripState>((set, get) => ({
       }));
     } catch (error) {
       set({ error: 'Failed to delete trip' });
+    }
+  },
+
+  uploadTripImage: async (tripId, file) => {
+    try {
+      const result = await uploadTripImageApi(tripId, file);
+      set(state => ({
+        trips: state.trips.map(t =>
+          t.id === tripId ? { ...t, coverImageUrl: result.objectKey } : t
+        ),
+      }));
+    } catch (error) {
+      set({ error: 'Failed to upload trip image' });
     }
   },
 
@@ -174,131 +178,74 @@ export const useTripStore = create<TripState>((set, get) => ({
       role
     };
 
-    try {
-      await api.addParticipant(newParticipant);
-      // Also need to update the trip's participant list in the backend if that's how we model it
-      // For now, we just update local state
-      set(state => ({
-        participants: [...state.participants, newParticipant],
-        trips: state.trips.map(t => t.id === tripId ? { ...t, participantIds: [...t.participantIds, currentUserId]} : t)
-      }));
-    } catch (error) {
-      set({ error: 'Failed to join trip' });
-    }
+    set(state => ({
+      participants: [...state.participants, newParticipant],
+      trips: state.trips.map(t => t.id === tripId ? { ...t, participantIds: [...t.participantIds, currentUserId]} : t)
+    }));
   },
 
   addParticipant: async (data) => {
     const newParticipant = { ...data, id: uuidv4() };
-    try {
-      await api.addParticipant(newParticipant);
-      set(state => ({
-        participants: [...state.participants, newParticipant]
-      }));
-    } catch (error) {
-      set({ error: 'Failed to add participant' });
-    }
+    set(state => ({
+      participants: [...state.participants, newParticipant]
+    }));
   },
 
   removeParticipant: async (id) => {
-    try {
-      await api.removeParticipant(id);
-      set(state => ({
-        participants: state.participants.filter(p => p.id !== id)
-      }));
-    } catch (error) {
-      set({ error: 'Failed to remove participant' });
-    }
+    set(state => ({
+      participants: state.participants.filter(p => p.id !== id)
+    }));
   },
 
   addActivity: async (data) => {
     const newActivity = { ...data, id: uuidv4() };
-    try {
-      await api.addActivity(newActivity);
-      set(state => ({
-        activities: [...state.activities, newActivity]
-      }));
-    } catch (error) {
-      set({ error: 'Failed to add activity' });
-    }
+    set(state => ({
+      activities: [...state.activities, newActivity]
+    }));
   },
 
   updateActivity: async (id, data) => {
-    try {
-      await api.updateActivity(id, data);
-      set(state => ({
-        activities: state.activities.map(a => a.id === id ? { ...a, ...data } : a)
-      }));
-    } catch (error) {
-      set({ error: 'Failed to update activity' });
-    }
+    set(state => ({
+      activities: state.activities.map(a => a.id === id ? { ...a, ...data } : a)
+    }));
   },
 
   deleteActivity: async (id) => {
-    try {
-      await api.deleteActivity(id);
-      set(state => ({
-        activities: state.activities.filter(a => a.id !== id)
-      }));
-    } catch (error) {
-      set({ error: 'Failed to delete activity' });
-    }
+    set(state => ({
+      activities: state.activities.filter(a => a.id !== id)
+    }));
   },
 
   addExpense: async (data) => {
     const newExpense = { ...data, id: uuidv4() };
-    try {
-      await api.addExpense(newExpense);
-      set(state => ({
-        expenses: [...state.expenses, newExpense]
-      }));
-    } catch (error) {
-      set({ error: 'Failed to add expense' });
-    }
+    set(state => ({
+      expenses: [...state.expenses, newExpense]
+    }));
   },
 
   deleteExpense: async (id) => {
-    try {
-      await api.deleteExpense(id);
-      set(state => ({
-        expenses: state.expenses.filter(e => e.id !== id)
-      }));
-    } catch (error) {
-      set({ error: 'Failed to delete expense' });
-    }
+    set(state => ({
+      expenses: state.expenses.filter(e => e.id !== id)
+    }));
   },
 
   markExpensePaid: async (id, isPaid) => {
-    try {
-      await api.updateExpense(id, { isPaid });
-      set(state => ({
-        expenses: state.expenses.map(e => e.id === id ? { ...e, isPaid } : e)
-      }));
-    } catch (error) {
-      set({ error: 'Failed to update expense' });
-    }
+    set(state => ({
+      expenses: state.expenses.map(e => e.id === id ? { ...e, isPaid } : e)
+    }));
   },
 
   addSettlement: async (data) => {
     const newSettlement = { ...data, id: uuidv4() };
-    try {
-      await api.addSettlement(newSettlement);
-      set(state => ({
-        settlements: [...state.settlements, newSettlement]
-      }));
-    } catch (error) {
-      set({ error: 'Failed to add settlement' });
-    }
+    set(state => ({
+      settlements: [...state.settlements, newSettlement]
+    }));
   },
 
   deleteSettlement: async (id) => {
-    try {
-      await api.deleteSettlement(id);
-      set(state => ({
-        settlements: state.settlements.filter(s => s.id !== id)
-      }));
-    } catch (error) {
-      set({ error: 'Failed to delete settlement' });
-    }
+    set(state => ({
+      settlements: state.settlements.filter(s => s.id !== id)
+    }));
   },
 
   addVehicle: async (data) => {

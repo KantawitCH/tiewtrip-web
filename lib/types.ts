@@ -67,10 +67,13 @@ export interface Vehicle {
 export interface Trip {
   id: string;
   name: string;
+  description?: string;
   destination: string;
   startDate: string;
   endDate: string;
   timezone: string;
   ownerId: string;
   participantIds: string[];
+  coverImageUrl?: string;
+  isActive?: boolean;
 }
