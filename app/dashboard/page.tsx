@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Plus, MapPin, Calendar, Sparkles, ArrowRight, Clock, Users, Plane, Ticket } from 'lucide-react';
 import { format, isFuture, isPast, differenceInDays } from 'date-fns';
 import AppLayout from '@/components/layout/app-layout';
@@ -27,7 +28,7 @@ function DashboardContent() {
   const trips = useTripStore((state) => state.trips);
   const fetchTrips = useTripStore((state) => state.fetchTrips);
   const addTrip = useTripStore((state) => state.addTrip);
-  
+  const isLoading = useTripStore((state) => state.isLoading);
   useEffect(() => {
     fetchTrips();
   }, [fetchTrips]);
@@ -35,27 +36,32 @@ function DashboardContent() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newTrip, setNewTrip] = useState({
     name: '',
+    description: '',
     destination: '',
     startDate: '',
     endDate: '',
     timezone: 'UTC',
   });
 
-  const handleCreateTrip = () => {
+  const handleCreateTrip = async () => {
     if (!newTrip.name || !newTrip.destination || !newTrip.startDate || !newTrip.endDate) {
       toast.error("Please fill in all fields");
       return;
     }
 
     if (new Date(newTrip.startDate) > new Date(newTrip.endDate)) {
-        toast.error("End date must be after start date");
-        return;
+      toast.error("End date must be after start date");
+      return;
     }
 
-    const id = addTrip(newTrip);
-    setIsCreateOpen(false);
-    toast.success("Trip created successfully!");
-    router.push(`/trip/${id}/overview`);
+    try {
+      await addTrip(newTrip);
+      setIsCreateOpen(false);
+      setNewTrip({ name: '', description: '', destination: '', startDate: '', endDate: '', timezone: 'UTC' });
+      toast.success("Trip created successfully!");
+    } catch {
+      toast.error("Failed to create trip. Please try again.");
+    }
   };
 
   const upcomingTrips = trips
@@ -106,11 +112,20 @@ function DashboardContent() {
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Trip Name</Label>
-                  <Input 
-                    id="name" 
-                    placeholder="e.g. Summer in Italy" 
+                  <Input
+                    id="name"
+                    placeholder="e.g. Summer in Italy"
                     value={newTrip.name}
                     onChange={(e) => setNewTrip({...newTrip, name: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="description">Description</Label>
+                  <Textarea
+                    id="description"
+                    placeholder="e.g. A summer road trip through Tuscany"
+                    value={newTrip.description}
+                    onChange={(e) => setNewTrip({...newTrip, description: e.target.value})}
                   />
                 </div>
                 <div className="space-y-2">
@@ -145,7 +160,9 @@ function DashboardContent() {
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
-                <Button onClick={handleCreateTrip}>Create Trip</Button>
+                <Button onClick={handleCreateTrip} disabled={isLoading}>
+                  {isLoading ? 'Creating...' : 'Create Trip'}
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -200,11 +217,7 @@ function TicketCard({ trip, router, variant }: { trip: any, router: any, variant
   const startDate = new Date(trip.startDate);
   const endDate = new Date(trip.endDate);
   const today = new Date();
-  const daysUntil = differenceInDays(startDate, today);
-  const duration = differenceInDays(endDate, startDate) + 1;
-  const currentDay = differenceInDays(today, startDate) + 1;
-  const daysAgo = differenceInDays(today, endDate);
-  const isActive = daysUntil <= 0 && !isPast(endDate);
+  const isActive = !isFuture(startDate) && !isPast(endDate);
   const isPastTrip = isPast(endDate);
   
   return (
@@ -246,19 +259,19 @@ function TicketCard({ trip, router, variant }: { trip: any, router: any, variant
                   </p>
                 </div>
              </div>
-             {isFuture(startDate) && (
-               <Badge variant="mint" className="bg-mint text-ink hover:bg-mint/90 border-none">
-                 {daysUntil} days to go
+             {isActive && (
+               <Badge className="bg-mint text-ink hover:bg-mint/90 border-none">
+                 Live
                </Badge>
              )}
-             {isActive && (
-               <Badge variant="coral" className="bg-coral text-white hover:bg-coral/90 border-none">
-                 Day {currentDay} of {duration}
+             {isFuture(startDate) && (
+               <Badge className="bg-coral text-white hover:bg-coral/90 border-none">
+                 Upcoming
                </Badge>
              )}
              {isPastTrip && (
                <Badge variant="outline" className="border-ink/20 text-muted">
-                 {daysAgo} days ago
+                 Completed
                </Badge>
              )}
           </div>

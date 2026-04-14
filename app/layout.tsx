@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Fraunces, DM_Sans, JetBrains_Mono, Figtree } from 'next/font/google';
 import { Toaster } from 'sonner';
+import AuthProvider from '@/components/auth-provider';
 import './globals.css';
 
 const fraunces = Fraunces({
@@ -41,7 +42,9 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${fraunces.variable} ${figtree.variable} ${dmSans.variable} ${jetbrainsMono.variable}`}>
       <body suppressHydrationWarning className="antialiased min-h-screen flex flex-col">
-        {children}
+        <AuthProvider>
+          {children}
+        </AuthProvider>
         <Toaster position="top-center" toastOptions={{
           style: {
             background: 'var(--color-ink)',

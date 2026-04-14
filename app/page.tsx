@@ -2,20 +2,20 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { 
-  LayoutDashboard, 
-  Map, 
-  Wallet, 
-  Users, 
-  Sparkles, 
-  Plane, 
-  Ticket, 
-  Clock, 
-  ArrowRight, 
-  CheckCircle2, 
-  Vote, 
-  MessageSquare, 
-  Smartphone, 
+import {
+  LayoutDashboard,
+  Map,
+  Wallet,
+  Users,
+  Sparkles,
+  Plane,
+  Ticket,
+  Clock,
+  ArrowRight,
+  CheckCircle2,
+  Vote,
+  MessageSquare,
+  Smartphone,
   Globe,
   Camera,
   Compass,
@@ -644,9 +644,9 @@ export default function LandingPage() {
         {/* HERO */}
         <section className="hero">
           {/* Blobs */}
-          <div className="blob" style={{ width:520,height:520,background:"#FF5C3A",top:-120,right:-100,animation:"drift 8s ease-in-out infinite alternate" }} />
-          <div className="blob" style={{ width:420,height:420,background:"#3DFFC0",bottom:-80,left:"18%",animation:"drift 8s 2s ease-in-out infinite alternate" }} />
-          <div className="blob" style={{ width:300,height:300,background:"#FFE44D",top:"42%",right:"22%",animation:"drift 8s 4s ease-in-out infinite alternate" }} />
+          <div className="blob" style={{ width: 520, height: 520, background: "#FF5C3A", top: -120, right: -100, animation: "drift 8s ease-in-out infinite alternate" }} />
+          <div className="blob" style={{ width: 420, height: 420, background: "#3DFFC0", bottom: -80, left: "18%", animation: "drift 8s 2s ease-in-out infinite alternate" }} />
+          <div className="blob" style={{ width: 300, height: 300, background: "#FFE44D", top: "42%", right: "22%", animation: "drift 8s 4s ease-in-out infinite alternate" }} />
           <style>{`@keyframes drift { from{transform:translate(0,0) scale(1)} to{transform:translate(28px,18px) scale(1.08)} }`}</style>
 
           <div className="hero-badge">
@@ -685,7 +685,7 @@ export default function LandingPage() {
             <p className="section-eyebrow">The Experience</p>
             <h2 className="section-title">Crafted for <span>adventurers</span></h2>
           </div>
-          
+
           <div className="showcase-container fade-in">
             <div className="mockup-stack">
               {/* Money Mockup */}
@@ -773,9 +773,9 @@ export default function LandingPage() {
               </div>
             </div>
           </div>
-          
+
           <div className="showcase-text fade-in">
-             <p className="text-muted text-sm uppercase tracking-[0.2em] font-bold">Interactive • Collaborative • Intelligent</p>
+            <p className="text-muted text-sm uppercase tracking-[0.2em] font-bold">Interactive • Collaborative • Intelligent</p>
           </div>
         </section>
 

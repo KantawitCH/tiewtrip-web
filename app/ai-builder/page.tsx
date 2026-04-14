@@ -95,29 +95,34 @@ function AIBuilderContent() {
     const startDate = new Date();
     const endDate = addDays(startDate, generatedTrip.durationDays - 1);
 
-    const tripId = await addTrip({
-      name: generatedTrip.name,
-      destination: generatedTrip.destination,
-      startDate: startDate.toISOString(),
-      endDate: endDate.toISOString(),
-      timezone: 'UTC', // Default
-    });
-
-    await Promise.all(generatedTrip.activities.map((activity: any, index: number) => {
-      return addActivity({
-        tripId,
-        dayIndex: activity.dayIndex,
-        title: activity.title,
-        startTime: activity.startTime,
-        endTime: activity.endTime,
-        location: activity.location,
-        notes: activity.notes,
-        order: index,
+    try {
+      const tripId = await addTrip({
+        name: generatedTrip.name,
+        destination: generatedTrip.destination,
+        startDate: format(startDate, 'yyyy-MM-dd'),
+        endDate: format(endDate, 'yyyy-MM-dd'),
+        timezone: 'UTC',
       });
-    }));
 
-    toast.success("Trip created successfully!");
-    router.push(`/trip/${tripId}/overview`);
+      await Promise.all(generatedTrip.activities.map((activity: any, index: number) => {
+        return addActivity({
+          tripId,
+          dayIndex: activity.dayIndex,
+          title: activity.title,
+          startTime: activity.startTime,
+          endTime: activity.endTime,
+          location: activity.location,
+          notes: activity.notes,
+          order: index,
+        });
+      }));
+
+      toast.success("Trip created successfully!");
+      router.push(`/trip/${tripId}/overview`);
+    } catch (error) {
+      console.error("Trip Creation Error:", error);
+      toast.error("Failed to create trip. Please try again.");
+    }
   };
 
   return (

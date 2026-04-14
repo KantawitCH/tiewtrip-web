@@ -9,7 +9,7 @@ const badgeVariants = cva(
       variant: {
         default: "bg-ink/10 text-ink",
         coral: "bg-coral/10 text-coral",
-        mint: "bg-mint/12 text-[#00b87a]",
+        mint: "bg-mint/12 text-ink",
         yellow: "bg-yellow/25 text-[#8a6d00]",
         outline: "text-ink border border-ink",
       },
